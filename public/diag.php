@@ -27,6 +27,14 @@ header('Content-Type: text/plain; charset=utf-8');
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        echo "\n\nFATAL: {$e['message']}\n{$e['file']}:{$e['line']}\n";
+    }
+    echo "\nmemory peak: ".round(memory_get_peak_usage(true) / 1048576, 1)." MB / limit ".ini_get('memory_limit')."\n";
+});
+
 echo 'PHP: '.PHP_VERSION."\n";
 echo '.env: '.(file_exists($envPath) ? 'present' : 'MISSING')."\n\n";
 
