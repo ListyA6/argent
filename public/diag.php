@@ -32,6 +32,18 @@ while (ob_get_level()) { ob_end_flush(); }
 
 function say(string $s): void { echo $s."\n"; flush(); }
 
+/* --- ?action=log : show the messages of recent log entries --- */
+if (($_GET['action'] ?? '') === 'log') {
+    $log = $base.'/storage/logs/laravel.log';
+    if (! file_exists($log)) { exit('no log'); }
+    foreach (file($log) as $line) {
+        if (preg_match('/^\[\d{4}-\d{2}-\d{2}[^\]]*\]\s+\w+\.(ERROR|CRITICAL|ALERT|EMERGENCY)/', $line)) {
+            echo substr($line, 0, 600)."\n\n";
+        }
+    }
+    exit;
+}
+
 /* --- ?action=repair : fix paste-mangled .env in place ---
    - strips BOM and per-line leading/trailing whitespace
    - re-joins value lines that an editor hard-wrapped (lines that are not
