@@ -32,6 +32,51 @@ while (ob_get_level()) { ob_end_flush(); }
 
 function say(string $s): void { echo $s."\n"; flush(); }
 
+/* --- ?action=repair : fix paste-mangled .env in place ---
+   - strips BOM and per-line leading/trailing whitespace
+   - re-joins value lines that an editor hard-wrapped (lines that are not
+     KEY=, comment, or blank get appended to the previous key's value)
+   - optional &dbpass=... overwrites DB_PASSWORD                       */
+if (($_GET['action'] ?? '') === 'repair') {
+    copy($envPath, $envPath.'.bak');
+    $out = [];
+    foreach (file($envPath) as $raw) {
+        $line = trim(str_replace("\xEF\xBB\xBF", '', $raw));
+        if ($line === '' || str_starts_with($line, '#')) {
+            $out[] = $line;
+        } elseif (preg_match('/^[A-Za-z_][A-Za-z0-9_]*=/', $line)) {
+            $out[] = $line;
+        } elseif ($out) {
+            // continuation of a wrapped value — glue onto previous line
+            for ($i = count($out) - 1; $i >= 0; $i--) {
+                if ($out[$i] !== '' && ! str_starts_with($out[$i], '#')) {
+                    $out[$i] .= $line;
+                    break;
+                }
+            }
+        }
+    }
+    if (isset($_GET['dbpass']) && $_GET['dbpass'] !== '') {
+        foreach ($out as &$line) {
+            if (str_starts_with($line, 'DB_PASSWORD=')) {
+                $line = 'DB_PASSWORD='.$_GET['dbpass'];
+            }
+        }
+        unset($line);
+    }
+    file_put_contents($envPath, implode("\n", $out)."\n");
+    say('repaired .env ('.count($out).' lines), backup at .env.bak');
+    say('--- continuing with normal diagnostics ---');
+    // re-read for the checks below
+    $env = [];
+    foreach (file($envPath) as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || ! str_contains($line, '=')) { continue; }
+        [$k, $v] = explode('=', $line, 2);
+        $env[trim($k)] = trim($v, " \t\"'");
+    }
+}
+
 register_shutdown_function(function () {
     $e = error_get_last();
     say($e ? "\nlast php error: [{$e['type']}] {$e['message']} @ {$e['file']}:{$e['line']}" : "\nlast php error: none");
