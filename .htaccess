@@ -1,0 +1,13 @@
+# Hostinger deploys the whole repo to public_html; route everything into Laravel's public/.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/ [L]
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Belt and braces: never serve sensitive files even if rewrites are off.
+<FilesMatch "^\.env|composer\.(json|lock)|artisan$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes
