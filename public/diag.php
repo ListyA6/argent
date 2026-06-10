@@ -44,6 +44,21 @@ if (($_GET['action'] ?? '') === 'log') {
     exit;
 }
 
+/* --- ?action=migrate : bootstrap migrations via console kernel ---
+   (bypasses HTTP middleware — needed the very first time, when the
+   sessions table the web middleware depends on doesn't exist yet)  */
+if (($_GET['action'] ?? '') === 'migrate') {
+    require $base.'/vendor/autoload.php';
+    $app = require $base.'/bootstrap/app.php';
+    $console = $app->make(Illuminate\Contracts\Console\Kernel::class);
+    $console->call('migrate', ['--force' => true]);
+    say($console->output());
+    $console->call('db:seed', ['--force' => true]);
+    say($console->output());
+    say('migrate+seed done');
+    exit;
+}
+
 /* --- ?action=repair : fix paste-mangled .env in place ---
    - strips BOM and per-line leading/trailing whitespace
    - re-joins value lines that an editor hard-wrapped (lines that are not

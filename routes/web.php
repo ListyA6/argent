@@ -31,8 +31,15 @@ Route::get('/', function (Request $request) {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::get('/setup', [SetupController::class, 'run']);
-Route::get('/cron/run', [SetupController::class, 'cron']);
+// No session/CSRF here: these must work on a fresh DB (before the sessions
+// table exists) and from cron, where no browser session is involved.
+$bare = [
+    \Illuminate\Session\Middleware\StartSession::class,
+    \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+    \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+];
+Route::get('/setup', [SetupController::class, 'run'])->withoutMiddleware($bare);
+Route::get('/cron/run', [SetupController::class, 'cron'])->withoutMiddleware($bare);
 
 Route::middleware('pin')->prefix('api')->group(function () {
     Route::get('/expenses', [ExpenseController::class, 'index']);
