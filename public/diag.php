@@ -62,8 +62,28 @@ try {
 }
 
 /* --- bootstrap with step markers --- */
+/* --- .env structural lint (keys + line lengths only, no values) --- */
+say('--- .env lint ---');
+foreach (file($envPath) as $i => $l) {
+    $t = rtrim($l, "\r\n");
+    $issues = '';
+    if ($i === 0 && str_starts_with($t, "\xEF\xBB\xBF")) { $issues .= ' [BOM]'; }
+    if (preg_match('/[\x{201C}\x{201D}\x{2018}\x{2019}\x{00A0}]/u', $t)) { $issues .= ' [smart-quote/nbsp]'; }
+    if ($t !== '' && ! str_starts_with(ltrim($t), '#') && ! preg_match('/^[A-Za-z_][A-Za-z0-9_]*=/', $t)) { $issues .= ' [NOT key=value]'; }
+    $key = str_contains($t, '=') ? explode('=', $t, 2)[0] : $t;
+    say(sprintf('%2d %-22s len=%d%s', $i + 1, substr($key, 0, 22), strlen($t), $issues));
+}
+
 say('step: require autoload');
 require $base.'/vendor/autoload.php';
+
+say('step: dotenv parse');
+try {
+    Dotenv\Dotenv::createImmutable($base)->load();
+    say('dotenv: OK');
+} catch (Throwable $t) {
+    say('dotenv FAILED: '.get_class($t).': '.$t->getMessage());
+}
 
 say('step: make app');
 $app = require $base.'/bootstrap/app.php';
